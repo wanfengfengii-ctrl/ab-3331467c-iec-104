@@ -1,0 +1,33 @@
+name: iec104-forensics
+
+services:
+  api:
+    build: .
+    image: iec104-audit:local
+    # Host port is configurable: API_PORT=9000 docker compose up api
+    ports:
+      - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # One-shot verification: runs the test suite, checks the built image, and
+  # smoke-tests legal and illegal sessions against the healthy API. The
+  # container exit code is the verification result.
+  verify:
+    build: .
+    image: iec104-audit:local
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://api:8080
+    command: ["python", "verify.py"]
+    restart: "no"
